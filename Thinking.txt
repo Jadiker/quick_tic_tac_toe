@@ -1,0 +1,19 @@
+'''
+6/21/2022
+
+Okay, so I need to figure out how I want the update to work.
+There's two types of training.
+One is in the "real" game.
+The other is in the fake games against random AIs.
+
+So what it should keep track of is the sequence of scenarios, the move it made, and the score at the end.
+And also know what mode it's in (for the correct factor to be used).
+
+Then, you also need to do explore exploit as well, but only in the "real" game.
+
+So what it should do is train by testing each move and playing randomly afterwards and updating accordingly.
+Then, after all those updates have happened, explore/exploit, and keep track of all those moves.
+Then, update the real game.
+
+I still need to do the win function, assign scores when there's an end, actually update based on those scores, and code stuff for a random AI and human to play.
+'''
