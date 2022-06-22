@@ -33,18 +33,41 @@ It plays 3 (FAKE_GAME_AMOUNT) completely random games for each of the moves it t
 Then, it updates the move scores based on how those games turned out.
 
 Move scores are updated using the following rule:
-NEW_MOVE_SCORE = (GAME_SCORE - OLD_MOVE_SCORE) *
-                 GAME_FACTOR *
-                 ((how many moves this move was from the last move of the game) * DISCOUNT_FACTOR)
-(The GAME_SCORE is the outcome of the game: either WIN_SCORE, TIE_SCORE, or LOSE_SCORE.)
-(GAME_FACTOR is set based on who the AI is playing. It will be higher
-..when playing against humans so that it updates scores more from those games.)
-(DISCOUNT_FACTOR makes it so that moves early on in the game aren't updated as much
-...because we're not actually certain that they lead to that outcome.
-For example, if your first move is in the center, but you lose the game,
-...that doesn't mean that the first move was actually bad.)
+NEW_MOVE_SCORE = OLD_MOVE_SCORE + (GAME_SCORE - OLD_MOVE_SCORE) * UPDATE_AMOUNT
+UPDATE_AMOUNT = GAME_FACTOR * DISCOUNT_FACTOR
+DISCOUNT_FACTOR = (DISTANCE_DISCOUNT ** (DISTANCE_FROM_END))
 
-This rule is known as a Bellman Update equation, and is the main equation used in reinforcement learning!
+GAME_SCORE
+The outcome of the game: either WIN_SCORE, TIE_SCORE, or LOSE_SCORE.
+
+UPDATE_AMOUNT
+A number between 0 and 1.
+How much we want to update the score to match the new score we saw.
+For example if UPDATE_AMOUNT is 0.5, then we'll change the NEW_MOVE_SCORE to be halfway between the OLD_MOVE_SCORE and the GAME_SCORE.
+
+GAME_FACTOR
+Usually around 0.5
+Set based on who the AI is playing.
+It will be higher when playing against humans so that it updates scores more from those games.
+
+DISTANCE_DISCOUNT
+Usually around 0.5
+Makes it so that moves early on in the game aren't updated as much
+...because we're not actually certain that early moves cause the late-game outcomes.
+(It could be that bad moves were made late in the game.)
+For example, if your first move is in the center, but you lose the game,
+...that doesn't mean that the first move was actually bad.
+
+DISTANCE_FROM_END
+A whole number between 1 and 5.
+How many moves away the move is from the last move of the game.
+It will be higher when moves are early on in the game, and 1 if it's the last move of the game.
+(This only counts moves from the perspective of the AI; the fastest possible game is 3 moves, the longest is 5.)
+
+
+This equation for updating the scores is known as a Bellman Update equation,
+...and is the main equation used in reinforcement learning!
+Hopefully it's explained in a way here that doesn't make it too scary!
 
 Basically, you take the old score and try to move it closer to the score you got for the game.
 But since you want to learn less from playing bad opponents, and you also aren't certain that you couldn't have played better,
@@ -92,7 +115,7 @@ FAKE_GAME_FACTOR = 1/10
 # this will be multiplied per move from the last move
 # for example, if this is 1/2, then the first move of a 3-move game (the shortest possible game) would only be updated by 1/8 the amount as the last move
 # (note that the score of a move is how good the AI thinks the move is)
-DISCOUNT_FACTOR = 1/2
+DISTANCE_DISCOUNT = 1/2
 
 # what should the score of a move that leads to a win be?
 WIN_SCORE = 5
@@ -124,75 +147,34 @@ if os.path.isfile(SAVE_FILE):
     with open(SAVE_FILE, "rb") as save_file: # open the file
         move_scores = pickle.load(save_file) # load the data into the variable
 
+
 # ******* See the bottom of the file to understand what's actually being run ********
 
-# a scenario is an unmodifiable game (turn the modifiable list into an unmodifiable tuple)
-# (this is done because lists can't be keys in dictionaries, but tuples can be)
-def game_to_scenario(game):
-    return tuple(game)
+# remember that a game is a list of 9 values like
+# ["opp", "ai", "opp", "empty", "opp", "ai", "ai", "opp", "ai"]
 
-# this is the heart of the AI
-# given data about what moves were made in what scenarios and what score those moves lead to, update the AI to make better choices
-def update_from_data(data, update_factor, final_score):
-    # data is in the format [[scenario, move], ...]
-    # It's a sequence of moves that were made in the game
-    # update_factor and final_score are numbers
+def player_to_string(player):
+    # convert the strings like "ai", "opp", and "empty" into "X", "O", and "-"
+    if player == AI_PLAYER:
+        return "X"
+    elif player == OPPONENT_PLAYER:
+        return "O"
+    else:
+        return "-"
 
-    # the further a move is from the end of the game, the less we should update it
-    number_of_moves = len(data)
-    # make a list that increases by one for each move, starting at 1
-    increasing = []
-    for i in range(number_of_moves):
-        increasing.append(i + 1)
-    # we want the earlier moves to be discounted the most
-    # so we actually want the list to be decreasing
-    # so, we should reverse it
-    increasing.reverse()
-
-    # use the increasing list to come up with the level factors
-    level_factors = []
-    for increase in increasing:
-        level_factors.append(DISCOUNT_FACTOR ** increase)
-    
-    # multiply the level factors by the update factor
-    factors = []
-    for level_factor in level_factors:
-        factors.append(level_factor * update_factor)
-    
-    datapoint_index = 0
-    for datapoint in data:
-        scenario = datapoint[0]
-        move = datapoint[1]
-        factor = factors[datapoint_index]
-        update_scenario_score_with_factor(scenario, move, final_score, factor)
-        datapoint_index = datapoint_index + 1
-
-def update_scenario_score_with_factor(scenario, move, score, factor):
-    if scenario not in move_scores.keys():
-        move_scores[scenario] = {}
-    if move not in move_scores[scenario].keys():
-        move_scores[scenario][move] = DEFAULT_SCORE
-
-    previous_score = move_scores[scenario][move]
-    move_scores[scenario][move] = previous_score + (score - previous_score) * factor
+def display_game(game):
+    # turn the player strings like "ai" and "opp" into displayable X's and O's
+    strings = []
+    for i in range(len(game)):
+        strings.append(player_to_string(game[i]))
+    # print the board
+    print(strings[0] + strings[1] + strings[2])
+    print(strings[3] + strings[4] + strings[5])
+    print(strings[6] + strings[7] + strings[8])
 
 def make_move(game, space, player):
     game[space] = player
     return game
-
-def copy_list(given_list):
-    new_list = []
-    for thing in given_list:
-        new_list.append(thing)
-    return new_list
-
-def get_possible_moves(game):
-    # get the indexes of the empty spaces in the board
-    possible_moves = []
-    for i in range(len(game)):
-        if game[i] == EMPTY:
-            possible_moves.append(i)
-    return possible_moves
 
 def check_winner(game):
     for player in [AI_PLAYER, OPPONENT_PLAYER]:
@@ -222,24 +204,64 @@ def check_winner(game):
     else:
         return NOT_OVER
 
-def player_to_string(player):
-    if player == AI_PLAYER:
-        return "X"
-    elif player == OPPONENT_PLAYER:
-        return "O"
+def winner_to_game_score(winner):
+    # returns the game score, given a winner of the game
+    if winner == AI_PLAYER:
+        game_score = WIN_SCORE
+    elif winner == OPPONENT_PLAYER:
+        game_score = LOSE_SCORE
     else:
-        return "-"
+        game_score = TIE_SCORE
+    return game_score
 
-def display_game(game):
-    # turn the player strings like "ai" and "opp" into displayable X's and O's
-    strings = []
+# a scenario is an unmodifiable game (turn the modifiable list into an unmodifiable tuple)
+# (this is done because lists can't be keys in dictionaries, but tuples can be)
+def game_to_scenario(game):
+    return tuple(game)
+
+# this is the heart of the AI's learning
+# given data about what moves were made in what scenarios and what score those moves lead to, update the AI to make better choices
+def update_from_data(data, game_factor, game_score):
+    # data is in the format [[scenario, move], ...]
+    # it's a sequence of moves that were made in the game
+    # game_factor and game_score are described in the Bellman equation at the top of the file
+
+    number_of_moves = len(data)
+    for index in range(number_of_moves):
+        datapoint = data[index]
+        scenario = datapoint[0]
+        move = datapoint[1]
+
+        # make sure that the storage slot for the data exists; create it if it doesn't
+        if scenario not in move_scores.keys():
+            move_scores[scenario] = {}
+        if move not in move_scores[scenario].keys():
+            move_scores[scenario][move] = DEFAULT_SCORE
+
+        old_move_score = move_scores[scenario][move]
+
+        # compute Bellman's equation - described in the comment at the top of the file
+        distance_from_end = number_of_moves - index
+        discount_factor = DISTANCE_DISCOUNT ** distance_from_end
+        update_amount = game_factor * discount_factor
+        new_move_score = old_move_score + (game_score - old_move_score) * update_amount
+
+        # store the updated score
+        move_scores[scenario][move] = new_move_score
+
+def copy_list(given_list):
+    new_list = []
+    for thing in given_list:
+        new_list.append(thing)
+    return new_list
+
+def get_possible_moves(game):
+    # get the indexes of the empty spaces in the board
+    possible_moves = []
     for i in range(len(game)):
-        strings.append(player_to_string(game[i]))
-    # print the board
-    print(strings[0] + strings[1] + strings[2])
-    print(strings[3] + strings[4] + strings[5])
-    print(strings[6] + strings[7] + strings[8])
-    
+        if game[i] == EMPTY:
+            possible_moves.append(i)
+    return possible_moves
 
 def train_ai(opponent):
     # game of Tic Tac Toe with all nine slots empty
@@ -281,11 +303,11 @@ def train_ai(opponent):
                     # these will all exist because it will have tried all of these moves during the simulation
                     # (that is, no need to check if they're empty / nonexistent)
                     scenario = game_to_scenario(game)
-                    score = move_scores[scenario][possible_move]
-                    if score > highest_score:
+                    game_score = move_scores[scenario][possible_move]
+                    if game_score > highest_score:
                         # this is the highest scoring move so far - save it!
                         move = possible_move
-                        highest_score = score
+                        highest_score = game_score
             
             # save the game as a scenario before it gets modified by the move
             scenario = game_to_scenario(game)
@@ -317,22 +339,17 @@ def train_ai(opponent):
     display_game(game)
 
     # tell the AI how well it did
-    if winner == AI_PLAYER:
-        score = WIN_SCORE
-    elif winner == OPPONENT_PLAYER:
-        score = LOSE_SCORE
-    else:
-        score = TIE_SCORE
+    game_score = winner_to_game_score(winner)
 
     # set how much we want the results to influence what the AI learns
     if opponent == AI_PLAYER:
-        update_factor = REAL_AI_GAME_FACTOR
+        game_factor = REAL_AI_GAME_FACTOR
     else:
         # opponent == OPPONENT_PLAYER:
-        update_factor = HUMAN_GAME_FACTOR
+        game_factor = HUMAN_GAME_FACTOR
 
     # update the scores of the moves that were played
-    update_from_data(game_data, update_factor, score)
+    update_from_data(game_data, game_factor, game_score)
 
 def get_move_from_user(game):
     # get the move from the user
@@ -365,29 +382,29 @@ def learn_from_simulation(game, opponent):
 
 def play_random_and_update(copied_simulation_game, copied_game_data):
     whose_turn = OPPONENT_PLAYER
+    # while the game is not over, make random moves
     while check_winner(copied_simulation_game) == NOT_OVER:
+        # turn the game into a scenario before the move is made so we can save the scenario if needed later
+        scenario = game_to_scenario(copied_simulation_game)
+
         # make a random move for the current player
         possible_moves = get_possible_moves(copied_simulation_game)
         move = random.choice(possible_moves)
-        # turn the game into a scenario before the move is made so we can save the scenario if needed later
-        scenario = game_to_scenario(copied_simulation_game)
         copied_simulation_game = make_move(copied_simulation_game, move, whose_turn)
+
         if whose_turn == AI_PLAYER:
+            # if the move was made by the AI, save it so we can update the score of the move
+            # ...based on how the game goes
             copied_game_data.append([scenario, move])
             whose_turn = OPPONENT_PLAYER
         else:
             whose_turn = AI_PLAYER
     
-    # set the score based on the outcome
+    # set the score based on the outcome of the game
     winner = check_winner(copied_simulation_game)
-    if winner == AI_PLAYER:
-        score = WIN_SCORE
-    elif winner == OPPONENT_PLAYER:
-        score = LOSE_SCORE
-    else:
-        score = TIE_SCORE
-    # these are fake random games the AI is playing, so we use the appropriate scaling
-    update_from_data(copied_game_data, FAKE_GAME_FACTOR, score)
+    game_score = winner_to_game_score(winner)
+    # these are fake random games the AI is playing, so we use the appropriate scaling (FAKE_GAME_FACTOR)
+    update_from_data(copied_game_data, FAKE_GAME_FACTOR, game_score)
 
 # *******The code is actually run here********
 # you can also have it play against an AI_OPPONENT
