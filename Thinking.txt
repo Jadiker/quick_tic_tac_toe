@@ -17,3 +17,16 @@ Then, update the real game.
 
 I still need to do the win function, assign scores when there's an end, actually update based on those scores, and code stuff for a random AI and human to play.
 '''
+
+'''
+6/22/2022
+
+It's not broken - it's just that I changed the formula.
+Apparently using multiplication rather than exponentiation on the discount leads to better percieved performance.
+This is because it would actively avoid earlier moves that it lost in before.
+Now, it may come back to them if its games against the fake AI are good enough.
+
+So, I think I should raise the default discount.
+I also could raise the impact on human games to be far more than the fake monte carlo games.
+But I think the default discount raise should be enough.
+'''

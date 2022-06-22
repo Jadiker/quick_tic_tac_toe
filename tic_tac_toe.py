@@ -33,6 +33,7 @@ If the move definitely leads to a tie, it should be closer to a TIE_SCORE of 1.
 When the AI needs to make a move, it tries all of the moves!
 It plays 3 (FAKE_GAME_AMOUNT) completely random games for each of the moves it tries.
 Then, it updates the move scores based on how those games turned out.
+(This practice is called Monte Carlo estimation: you try stuff randomly and see how it turns out.)
 
 Move scores are updated using the following rule:
 NEW_MOVE_SCORE = OLD_MOVE_SCORE + (GAME_SCORE - OLD_MOVE_SCORE) * UPDATE_AMOUNT
@@ -53,12 +54,13 @@ Set based on who the AI is playing.
 It will be higher when playing against humans so that it updates scores more from those games.
 
 DISTANCE_DISCOUNT
-Usually around 0.5
+Between 0 and 1
 Makes it so that moves early on in the game aren't updated as much
 ...because we're not actually certain that early moves cause the late-game outcomes.
 (It could be that bad moves were made late in the game.)
 For example, if your first move is in the center, but you lose the game,
 ...that doesn't mean that the first move was actually bad.
+The bigger this is, the more early moves are affected by later losses.
 
 DISTANCE_FROM_END
 A whole number between 1 and 5.
@@ -282,7 +284,7 @@ def train_ai(opponent):
         display_game(game)
         if whose_turn == AI_PLAYER:
             # try each move and learn from them
-            learn_from_simulation(game, opponent)
+            learn_from_simulation(game)
 
             # randomly decide whether to explore or exploit
             if ALWAYS_EXPLOIT == True:
@@ -366,7 +368,7 @@ def get_move_from_user(game):
         move = int(input()) - 1
     return move
 
-def learn_from_simulation(game, opponent):
+def learn_from_simulation(game):
     # try each possible move a certain number of times and
     # see how well that move (plus other random moves) does against a random opponent
     # Update the scores accordingly
