@@ -3,7 +3,9 @@ This is a reinforcement learning AI that learns to play the game of TicTacToe by
 ...playing against random opponents - and you!
 
 I've coded so that it doesn't require understanding any advanced coding techniques.
-(I don't use classes, list comprehensions, etc.)
+(I don't use classes, list comprehensions, slicing, etc.)
+(Understanding the code fully generally requires understanding variables,
+...functions, lists, dictionaries, loops, and basic format strings.)
 
 In this code, a TicTacToe game is represented by a list of 9 values.
 For example, the board
@@ -73,7 +75,7 @@ Basically, you take the old score and try to move it closer to the score you got
 But since you want to learn less from playing bad opponents, and you also aren't certain that you couldn't have played better,
 ...you don't want to set the score for the move to just be the outcome of the game.
 So, you shrink how much you change the score based on who you're playing
-...and how many moves this move was from the end of the game.
+...and how many moves the move was from the end of the game.
 Moves closer to the end of the game were probably more responsible for losing the game, so they get updated more.
 Learning from better opponents is probably better, so you update moves more when playing against good opponents.
 
@@ -99,8 +101,9 @@ SAVE_FILE = "knowledge.pkl"
 # True if it should make the best move
 # False if you want it to explore and learn more
 ALWAYS_EXPLOIT = False
-# if it's not always exploiting, this is the chance it will not explore (a move that it doesn't think is the best)
-EXPLOIT_CHANCE = 0.9
+# if not always exploiting (ALWAYS_EXPLOIT is False)
+# ...this is the chance it will explore a non-optimal move
+EXPLORE_CHANCE = 0.1
 # before making a move, the AI tries each move and sees how that move does against a random player
 # how many games should it play against that random player in order to figure out what move is the best?
 # more games will make it seem more intelligent, but take longer to move
@@ -283,10 +286,11 @@ def train_ai(opponent):
 
             # randomly decide whether to explore or exploit
             if ALWAYS_EXPLOIT == True:
-                random_explore_number = 0
+                random_explore_number = 1
             else:
+                # get a random decimal number between 0 and 1
                 random_explore_number = random.random()
-            if random_explore_number > EXPLOIT_CHANCE:
+            if random_explore_number <= EXPLORE_CHANCE:
                 # explore
                 # pick a move at random
                 print("Exploring to see what happens...")
@@ -296,6 +300,7 @@ def train_ai(opponent):
                 # exploit
                 # pick the move that has the highest score
                 print("Choosing the best move...")
+                # start the highest score at negative infinity
                 highest_score = float('-inf')
                 move = None
                 possible_moves = get_possible_moves(game)
@@ -408,8 +413,10 @@ def play_random_and_update(copied_simulation_game, copied_game_data):
 
 # *******The code is actually run here********
 # you can also have it play against an AI_OPPONENT
-train_ai(HUMAN_OPPONENT)
+while True:
+    print("New Game!")
+    train_ai(HUMAN_OPPONENT)
 
-# save the training data
-with open(SAVE_FILE, "wb") as save_file:
-    pickle.dump(move_scores, save_file)
+    # save the training data
+    with open(SAVE_FILE, "wb") as save_file:
+        pickle.dump(move_scores, save_file)
