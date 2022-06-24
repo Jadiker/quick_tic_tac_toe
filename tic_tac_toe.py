@@ -136,8 +136,8 @@ TIE_SCORE = 1
 # What should the score of a move that we have no data on be?
 DEFAULT_SCORE = 0
 
-# print information helpful for debugging
-DEBUG = True # TODO
+# print information helpful for debugging and seeing the AIs decisions
+DEBUG = False
 
 # constants that I use in the code so I don't accidentally mistype the things they refer to
 HUMAN_OPPONENT = "human opponent"
