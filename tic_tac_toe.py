@@ -99,37 +99,45 @@ import random
 
 # where the AI's knowledge is stored
 SAVE_FILE = "knowledge.pkl"
+# How many games the AI should train playing against a random player before playing against a human
+# The higher the amount, the smarter the AI will seem to be
+PRACTICE_GAME_AMOUNT = 100
 # should the AI always make what it thinks is the best move?
 # True if it should make the best move
 # False if you want it to explore and learn more
-ALWAYS_EXPLOIT = False
+ALWAYS_EXPLOIT = True
 # if not always exploiting (ALWAYS_EXPLOIT is False)
 # ...this is the chance it will explore a non-optimal move
-EXPLORE_CHANCE = 0.1
+EXPLORE_CHANCE = 0.2
 # before making a move, the AI tries each move and sees how that move does against a random player
 # how many games should it play against that random player in order to figure out what move is the best?
 # more games will make it seem more intelligent, but take longer to move
-FAKE_GAME_AMOUNT = 3
+FAKE_GAME_AMOUNT = 20
 # how much to weight games that are played against humans
-HUMAN_GAME_FACTOR = 5/6
-# how much to weight games that are played against the AI
-REAL_AI_GAME_FACTOR = 2/3
-# how much to weight games that are played against the random AI when testing moves
-FAKE_GAME_FACTOR = 1/10
+HUMAN_GAME_FACTOR = 1.0
+# how much to weight games that are played against the (random) AI
+REAL_AI_GAME_FACTOR = 0.5
+# how much to weight games that are played randomly against the random AI when testing moves
+# this should be very low because playing games randomly has little bearing
+# ...on how good the move is when played with strategy
+FAKE_GAME_FACTOR = 0.001
 # how much less to update the score of a move that happened early on in a game
 # this will be multiplied per move from the last move
 # for example, if this is 1/2, then the first move of a 3-move game (the shortest possible game) would only be updated by 1/8 the amount as the last move
 # (note that the score of a move is how good the AI thinks the move is)
-DISTANCE_DISCOUNT = 1/2
+DISTANCE_DISCOUNT = 0.9
 
 # what should the score of a move that leads to a win be?
 WIN_SCORE = 5
 # what should the score of a move that leads to a loss be?
-LOSE_SCORE = -100
+LOSE_SCORE = -15
 # what should the score of a move that leads to a tie be?
 TIE_SCORE = 1
 # What should the score of a move that we have no data on be?
 DEFAULT_SCORE = 0
+
+# print information helpful for debugging
+DEBUG = True # TODO
 
 # constants that I use in the code so I don't accidentally mistype the things they refer to
 HUMAN_OPPONENT = "human opponent"
@@ -280,8 +288,9 @@ def train_ai(opponent):
     winner = None
 
     while is_game_over is False:
-        print("Current game state:")
-        display_game(game)
+        if opponent == HUMAN_OPPONENT:
+            print("Current game state:")
+            display_game(game)
         if whose_turn == AI_PLAYER:
             # try each move and learn from them
             learn_from_simulation(game)
@@ -295,13 +304,15 @@ def train_ai(opponent):
             if random_explore_number <= EXPLORE_CHANCE:
                 # explore
                 # pick a move at random
-                print("Exploring to see what happens...")
+                if opponent == HUMAN_OPPONENT:
+                    print("Exploring to see what happens...")
                 possible_moves = get_possible_moves(game)
                 move = random.choice(possible_moves)
             else:
                 # exploit
                 # pick the move that has the highest score
-                print("Choosing the best move...")
+                if opponent == HUMAN_OPPONENT:
+                    print("Choosing the best move...")
                 # start the highest score at negative infinity
                 highest_score = float('-inf')
                 move = None
@@ -318,9 +329,16 @@ def train_ai(opponent):
             
             # save the game as a scenario before it gets modified by the move
             scenario = game_to_scenario(game)
+            if DEBUG and opponent == HUMAN_OPPONENT:
+                print("How the AI views the moves:")
+                human_understandable_move_scores = {}
+                for debug_move in move_scores[scenario].keys():
+                    human_understandable_move_scores[debug_move + 1] = move_scores[scenario][debug_move]
+                print(human_understandable_move_scores)
             game_data.append([scenario, move])
             game = make_move(game, move, AI_PLAYER)
-            print(f"The AI played move {move + 1}.")
+            if opponent == HUMAN_OPPONENT:
+                print(f"The AI played move {move + 1}.")
             whose_turn = OPPONENT_PLAYER
         else:
             # opponent's turn
@@ -339,11 +357,12 @@ def train_ai(opponent):
         if winner is not NOT_OVER:
             is_game_over = True
 
-    if winner == TIE:
-        print("Tie game!")
-    else:
-        print(f"The winner is {player_to_string(winner)}!")
-    display_game(game)
+    if opponent == HUMAN_OPPONENT:
+        if winner == TIE:
+            print("Tie game!")
+        else:
+            print(f"The winner is {player_to_string(winner)}!")
+        display_game(game)
 
     # tell the AI how well it did
     game_score = winner_to_game_score(winner)
@@ -415,7 +434,30 @@ def play_random_and_update(copied_simulation_game, copied_game_data):
 
 # *******The code is actually run here********
 # you can also have it play against an AI_OPPONENT
+
+# allow it to explore during training, but save what the user wanted
+exploit_against_human = ALWAYS_EXPLOIT
+ALWAYS_EXPLOIT = False
+print("Training against a random opponent...")
+for game_index in range(PRACTICE_GAME_AMOUNT):
+    percent_complete = game_index / PRACTICE_GAME_AMOUNT * 100
+    # round the percentage one decimal place
+    percent_complete = round(percent_complete, 1)
+    print(f"Training is {percent_complete}% complete...")
+    train_ai(AI_OPPONENT)
+
+print("Training complete! Saving what I learned...")
+
+with open(SAVE_FILE, "wb") as save_file:
+    pickle.dump(move_scores, save_file)
+
+# set the ALWAYS_EXPLOIT variable back to what it was
+ALWAYS_EXPLOIT = exploit_against_human
+
+print("Data saved - I'm ready to play!")
+
 while True:
+    # continually play against the human and learn from the games
     print("New Game!")
     train_ai(HUMAN_OPPONENT)
 

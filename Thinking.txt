@@ -29,4 +29,87 @@ Now, it may come back to them if its games against the fake AI are good enough.
 So, I think I should raise the default discount.
 I also could raise the impact on human games to be far more than the fake monte carlo games.
 But I think the default discount raise should be enough.
+
+Current game state:
+O--
+---
+XOX
+Choosing the best move...
+The AI played move 2.
+Current game state:
+OX-
+---
+XOX
+Enter a number between 1 and 9:
+
+It's still making bad moves, but I think that's due to loss prevention.
+I think it's too biased against losses.
+I'll have to change that.
+
+I'm thinking of also making it so that instead of the GAME_FACTOR being a part of the UPDATE_AMOUNT,
+...the GAME_FACTOR is a multiplier on the GAME_SCORE.
+
+I think this would make more sense.
+
+However, that brings us closer to just having (completely) different rewards based on who the AI is playing.
+
+It's still pretty bad, even without high loss prevention.
+I could up the number of Monte Carlo games it plays and see if that helps.
+But honestly, I think having it play against the random AI will help the most.
+
+Current game state:
+O--
+-O-
+XOX
+Choosing the best move...
+The AI played move 4.
+Current game state:
+O--
+XO-
+XOX
+
+Even with that, it seems like the AI is stupid.
+
+Current game state:
+---
+-O-
+OXX
+Choosing the best move...
+How the AI views the moves:
+{4: -0.07487282093218607, 2: -0.2643188124377274, 1: -0.10563670869150388, 3: -0.01124842170153903, 6: -0.08796689206553514}
+The AI played move 6.
+Current game state:
+---
+-OX
+OXX
+
+Oof. Let's analyze this.
+
+What's the real value of this move if everyone's random?
+
+After this move, there's a 5/8 chance of losing, and 3/8 chance of winning.
+So it seems to have gotten really unlikely, or something's broken in the code.
+'''
+
+'''
+6/24/2022
+
+I want to make a program that determines what the chances are are winning with random play given a board.
+I think I'll do that as a separate project.
+
+My instinct is that playing randomly is not a good way to determine good moves.
+So, in that case, there are three things I can do.
+1. Raise the penalty for losing so it goes back to being defensive
+2. Up the explore rate so that it learns more about different situations
+3. Have it play against itself, rather than random players.
+
+I think I might have a self-play branch of this project.
+But, for now, I think I'll just do (1) and (2) and have it play a few practice games.
+
+It's losing a lot right now, even after having played a lot of practice games.
+
+I fixed a bug that was introduced by my debugging code.
+(It was always picking the last key in the dictionary, rather than the best move.)
+
+This seems to work very well!
 '''
